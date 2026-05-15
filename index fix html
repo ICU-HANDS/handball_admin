@@ -257,44 +257,14 @@ body { background:#0a0a0a; }
   const WD = ['日','月','火','水','木','金','土'];
   const PL = {GK:'ゴールキーパー',FB:'フルバック',LW:'レフトウイング',CF:'センターフォワード',RW:'ライトウイング',LB:'レフトバック',RB:'ライトバック',CB:'センターバック',MGR:'マネージャー'};
 
-  // ── データキャッシュ(Firestoreから取得した最新データを保持)──
+  // ── データキャッシュ ───────────────────────────────────────
   let matchesCache = [];
   let membersCache = [];
 
-  // ── Firebase版 データアクセス関数 ─────────────────────────
   function getMatches() { return matchesCache.length > 0 ? matchesCache : SM; }
   function getMembers() { return membersCache.length > 0 ? membersCache : SMB; }
 
-  async function saveMatches(arr) {
-    // 既存ドキュメントとの差分を計算して保存・削除
-    const oldIds = matchesCache.map(m => String(m.id));
-    const newIds = arr.map(m => String(m.id));
-    
-    // 削除されたものを削除
-    const toDelete = oldIds.filter(id => !newIds.includes(id));
-    for (const id of toDelete) {
-      await deleteDoc(doc(db, "matches", id));
-    }
-    // 追加・更新
-    for (const match of arr) {
-      await setDoc(doc(db, "matches", String(match.id)), match);
-    }
-  }
-
-  async function saveMembers(arr) {
-    const oldIds = membersCache.map(m => String(m.id));
-    const newIds = arr.map(m => String(m.id));
-    
-    const toDelete = oldIds.filter(id => !newIds.includes(id));
-    for (const id of toDelete) {
-      await deleteDoc(doc(db, "members", id));
-    }
-    for (const member of arr) {
-      await setDoc(doc(db, "members", String(member.id)), member);
-    }
-  }
-
-  // ── Firestore リアルタイム同期(他デバイスの変更も即反映)──
+  // ── Firestore リアルタイム同期 ────────────────────────────
   onSnapshot(collection(db, "matches"), (snapshot) => {
     matchesCache = snapshot.docs.map(d => d.data());
     renderMatchList();
@@ -305,7 +275,12 @@ body { background:#0a0a0a; }
     renderMemberList();
   });
 
-  function showToast(msg) { const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),2500); }
+  function showToast(msg) { 
+    const t=document.getElementById('toast'); 
+    if (!t) return;
+    t.textContent=msg; t.classList.add('show'); 
+    setTimeout(()=>t.classList.remove('show'),2500); 
+  }
 
   // ── PHOTO HANDLING ──────────────────────────────────────────
   let currentPhotoData = '';
@@ -327,12 +302,16 @@ body { background:#0a0a0a; }
   }
   function removePhoto() {
     currentPhotoData = '';
-    document.getElementById('photoPreview').style.display = 'none';
-    document.getElementById('photoPreview').src = '';
-    document.getElementById('uploadPrompt').style.display = 'block';
-    document.getElementById('photoUploadArea').classList.remove('has-photo');
-    document.getElementById('btnRemovePhoto').classList.remove('visible');
-    document.getElementById('mPhoto').value = '';
+    const preview = document.getElementById('photoPreview');
+    if (preview) { preview.style.display = 'none'; preview.src = ''; }
+    const prompt = document.getElementById('uploadPrompt');
+    if (prompt) prompt.style.display = 'block';
+    const area = document.getElementById('photoUploadArea');
+    if (area) area.classList.remove('has-photo');
+    const btn = document.getElementById('btnRemovePhoto');
+    if (btn) btn.classList.remove('visible');
+    const mPhotoEl = document.getElementById('mPhoto');
+    if (mPhotoEl) mPhotoEl.value = '';
   }
   function setPhotoPreview(src) {
     if (!src) { removePhoto(); return; }
@@ -364,10 +343,10 @@ body { background:#0a0a0a; }
         <div class="row-actions"><button class="btn-edit" data-edit-match="${m.id}">編集</button><button class="btn-del" data-del-match="${m.id}">削除</button></div>
       </div>`;
     }).join('');
-    // 動的に作ったボタンにイベント設定
     el.querySelectorAll('[data-edit-match]').forEach(b=>b.addEventListener('click',()=>startEditMatch(Number(b.dataset.editMatch))));
     el.querySelectorAll('[data-del-match]').forEach(b=>b.addEventListener('click',()=>deleteMatch(Number(b.dataset.delMatch))));
   }
+
   function clearMatchForm() {
     editingId=null;
     document.getElementById('formTitle').innerHTML='試合を<span>追加</span>';
@@ -378,6 +357,7 @@ body { background:#0a0a0a; }
     document.getElementById('btnSave').textContent='保存する';
     document.getElementById('btnCancel').style.display='none';
   }
+
   function startEditMatch(id) {
     const m=getMatches().find(x=>x.id===id);if(!m)return;
     editingId=id;
@@ -394,14 +374,20 @@ body { background:#0a0a0a; }
     document.getElementById('btnSave').textContent='更新する';
     document.getElementById('btnCancel').style.display='inline-block';
   }
+
   async function deleteMatch(id){
     if(!confirm('削除しますか？'))return;
     try {
       await deleteDoc(doc(db, "matches", String(id)));
       showToast('削除しました');
-    } catch(e) { alert('エラー: '+e.message); }
+    } catch(e) { 
+      console.error('Match delete error:', e);
+      alert('エラー: '+e.message); 
+    }
   }
+
   document.getElementById('btnSave').addEventListener('click', async ()=>{
+    console.log('btnSave clicked');
     const date=document.getElementById('fDate').value;
     const opponent=document.getElementById('fOpponent').value.trim();
     const venue=document.getElementById('fVenue').value.trim();
@@ -421,10 +407,14 @@ body { background:#0a0a0a; }
       status:hasSc?'done':'upcoming'
     };
     try {
+      console.log('Saving match:', entry);
       await setDoc(doc(db, "matches", String(entry.id)), entry);
       showToast(editingId ? '更新しました' : '追加しました');
       clearMatchForm();
-    } catch(e) { alert('エラー: '+e.message); }
+    } catch(e) { 
+      console.error('Match save error:', e);
+      alert('エラー: '+e.message); 
+    }
   });
   document.getElementById('btnCancel').addEventListener('click',clearMatchForm);
   document.querySelectorAll('#matchGenderTabs .ag-btn').forEach(btn=>{
@@ -437,9 +427,12 @@ body { background:#0a0a0a; }
   // ── MEMBERS ─────────────────────────────────────────────────
   let mbGender='men', editingMemberId=null;
 
-  document.getElementById('mGender').addEventListener('change', e => {
-    document.getElementById('posGroup').style.display = e.target.value === 'manager' ? 'none' : 'block';
-  });
+  const mGenderEl = document.getElementById('mGender');
+  if (mGenderEl) {
+    mGenderEl.addEventListener('change', e => {
+      document.getElementById('posGroup').style.display = e.target.value === 'manager' ? 'none' : 'block';
+    });
+  }
 
   function renderMemberList() {
     const members=getMembers().filter(m=>m.gender===mbGender);
@@ -448,7 +441,7 @@ body { background:#0a0a0a; }
     if (!el) return;
     if(!sorted.length){el.innerHTML='<div class="empty-msg">NO MEMBERS</div>';return;}
     el.innerHTML=sorted.map(m=>{
-      const thumbHTML = m.photo
+      const thumbHTML = (m.photo && m.photo.length > 0)
         ? `<div class="row-thumb"><img src="${m.photo}" alt="${m.name}"></div>`
         : `<div class="row-thumb"><span class="row-thumb-placeholder">${m.position}</span></div>`;
       return `<div class="row member-row-grid">
@@ -461,6 +454,7 @@ body { background:#0a0a0a; }
     el.querySelectorAll('[data-edit-member]').forEach(b=>b.addEventListener('click',()=>startEditMember(Number(b.dataset.editMember))));
     el.querySelectorAll('[data-del-member]').forEach(b=>b.addEventListener('click',()=>deleteMember(Number(b.dataset.delMember))));
   }
+
   function clearMemberForm() {
     editingMemberId=null;
     document.getElementById('memberFormTitle').innerHTML='部員を<span>追加</span>';
@@ -473,6 +467,7 @@ body { background:#0a0a0a; }
     document.getElementById('btnMemberCancel').style.display='none';
     removePhoto();
   }
+
   function startEditMember(id) {
     const m=getMembers().find(x=>x.id===id);if(!m)return;
     editingMemberId=id;
@@ -491,14 +486,20 @@ body { background:#0a0a0a; }
     setPhotoPreview(m.photo||'');
     document.querySelector('#tab-members .admin-form-card').scrollIntoView({behavior:'smooth'});
   }
+
   async function deleteMember(id){
     if(!confirm('削除しますか？'))return;
     try {
       await deleteDoc(doc(db, "members", String(id)));
       showToast('削除しました');
-    } catch(e) { alert('エラー: '+e.message); }
+    } catch(e) { 
+      console.error('Member delete error:', e);
+      alert('エラー: '+e.message); 
+    }
   }
+
   document.getElementById('btnMemberSave').addEventListener('click', async ()=>{
+    console.log('btnMemberSave clicked');
     const name=document.getElementById('mName').value.trim();
     const origin=document.getElementById('mOrigin').value.trim();
     const entry=document.getElementById('mEntry').value.trim();
@@ -514,11 +515,13 @@ body { background:#0a0a0a; }
       photo:currentPhotoData
     };
     try {
+      console.log('Saving member:', { ...member, photo: member.photo ? '[base64 data]' : '' });
       await setDoc(doc(db, "members", String(member.id)), member);
       showToast(editingMemberId ? '更新しました' : '追加しました');
       clearMemberForm();
     } catch(e) { 
-      if (e.message.includes('size')) {
+      console.error('Member save error:', e);
+      if (e.message && e.message.includes('size')) {
         alert('写真のサイズが大きすぎます。もっと小さい写真を選んでください。');
       } else {
         alert('エラー: '+e.message); 
@@ -530,7 +533,6 @@ body { background:#0a0a0a; }
     btn.addEventListener('click',()=>{document.querySelectorAll('#memberGenderTabs .ag-btn').forEach(b=>b.classList.remove('active'));btn.classList.add('active');mbGender=btn.dataset.g;renderMemberList();});
   });
 
-  // 写真アップロードのイベント設定
   const mPhotoEl = document.getElementById('mPhoto');
   if (mPhotoEl) mPhotoEl.addEventListener('change', handlePhoto);
   const btnRemovePhotoEl = document.getElementById('btnRemovePhoto');
