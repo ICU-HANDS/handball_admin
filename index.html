@@ -463,6 +463,10 @@ renderMemberList();
   // Initialize Firebase
   const app = initializeApp(firebaseConfig);
   const analytics = getAnalytics(app);
+  const db = getFirestore(app);
+  
+  console.log("Firebase 初期化成功!", app);
+  console.log("Firestore 接続成功!", db);
 </script>
 
 </body>
