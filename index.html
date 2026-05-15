@@ -443,27 +443,23 @@ renderMemberList();
 
 
 <script type="module">
-  // Import the functions you need from the SDKs you need
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-app.js";
-  import { getAnalytics } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-analytics.js";
-  // TODO: Add SDKs for Firebase products that you want to use
-  // https://firebase.google.com/docs/web/setup#available-libraries
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+    
+    // ★追加する1行目(import文)
+    import { getFirestore, collection, addDoc, getDocs, deleteDoc, doc } 
+      from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
-  // Your web app's Firebase configuration
-  // For Firebase JS SDK v7.20.0 and later, measurementId is optional
-  const firebaseConfig = {
-    apiKey: "AIzaSyBVL-uye0BBw9RJLQ1EA5w8o5Dhta7B_ns",
-    authDomain: "icu-hands.firebaseapp.com",
-    projectId: "icu-hands",
-    storageBucket: "icu-hands.firebasestorage.app",
-    messagingSenderId: "844822728120",
-    appId: "1:844822728120:web:dd57b34f0c40bf75a5134d",
-    measurementId: "G-KVMLVVP8P9"
-  };
+    const firebaseConfig = {
+      apiKey: "AIzaSy...",
+      authDomain: "icu-hands.firebaseapp.com",
+      projectId: "icu-hands",
+      // ...
+    };
 
-  // Initialize Firebase
-  const app = initializeApp(firebaseConfig);
-  const analytics = getAnalytics(app);
+    const app = initializeApp(firebaseConfig);
+    
+    // ★追加する2行目(Firestoreを使えるようにする)
+    const db = getFirestore(app);
 </script>
 
 </body>
