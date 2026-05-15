@@ -443,23 +443,22 @@ renderMemberList();
 
 
 <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-    
-    // ★追加する1行目(import文)
-    import { getFirestore, collection, addDoc, getDocs, deleteDoc, doc } 
-      from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+  import { getFirestore, collection, addDoc, getDocs, deleteDoc, doc } 
+    from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
-    const firebaseConfig = {
-      apiKey: "AIzaSy...",
-      authDomain: "icu-hands.firebaseapp.com",
-      projectId: "icu-hands",
-      // ...
-    };
+  const firebaseConfig = {
+    apiKey: "AIzaSy...",
+    // ...
+  };
 
-    const app = initializeApp(firebaseConfig);
-    
-    // ★追加する2行目(Firestoreを使えるようにする)
-    const db = getFirestore(app);
+  const app = initializeApp(firebaseConfig);
+  const db = getFirestore(app);
+  
+  // ★ここから追加
+  console.log("Firebase 初期化成功!", app);
+  console.log("Firestore 接続成功!", db);
+  // ★ここまで追加
 </script>
 
 </body>
