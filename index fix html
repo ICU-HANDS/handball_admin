@@ -231,6 +231,118 @@ body { background:#0a0a0a; }
 
 <div class="toast" id="toast"></div>
 
+<script type="module">
+  // ── FIREBASE 初期化 ────────────────────────────────────────
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-app.js";
+  import { 
+    getFirestore, collection, doc, getDocs, setDoc, deleteDoc, onSnapshot 
+  } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-firestore.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyBVL-uye0BBw9RJLQ1EA5w8o5Dhta7B_ns",
+    authDomain: "icu-hands.firebaseapp.com",
+    projectId: "icu-hands",
+    storageBucket: "icu-hands.firebasestorage.app",
+    messagingSenderId: "844822728120",
+    appId: "1:844822728120:web:dd57b34f0c40bf75a5134d",
+    measurementId: "G-KVMLVVP8P9"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const db = getFirestore(app);
+
+  // ── サンプルデータ(初回データなし時のフォールバック)───────
+  const SM = [{"id":1,"date":"2025-05-10","league":"spring","gender":"men","opponent":"青山学院大学","venue":"青山学院大学体育館","home":true,"scoreUs":28,"scoreThem":21,"status":"done"},{"id":2,"date":"2025-05-10","league":"spring","gender":"women","opponent":"津田塾大学","venue":"津田塾大学体育館","home":false,"scoreUs":24,"scoreThem":18,"status":"done"}];
+  const SMB = [{"id": 1, "name": "山田太郎", "year": "4", "gender": "men", "position": "GK", "origin": "東京都・湘南学園", "entry": "ハンドボールの魅力に惹かれて", "skill": "守備・反射神経", "comment": "最後の年、全力でチームを支えます", "photo": ""}];
+  const WD = ['日','月','火','水','木','金','土'];
+  const PL = {GK:'ゴールキーパー',FB:'フルバック',LW:'レフトウイング',CF:'センターフォワード',RW:'ライトウイング',LB:'レフトバック',RB:'ライトバック',CB:'センターバック',MGR:'マネージャー'};
+
+  // ── データキャッシュ(Firestoreから取得した最新データを保持)──
+  let matchesCache = [];
+  let membersCache = [];
+
+  // ── Firebase版 データアクセス関数 ─────────────────────────
+  function getMatches() { return matchesCache.length > 0 ? matchesCache : SM; }
+  function getMembers() { return membersCache.length > 0 ? membersCache : SMB; }
+
+  async function saveMatches(arr) {
+    // 既存ドキュメントとの差分を計算して保存・削除
+    const oldIds = matchesCache.map(m => String(m.id));
+    const newIds = arr.map(m => String(m.id));
+    
+    // 削除されたものを削除
+    const toDelete = oldIds.filter(id => !newIds.includes(id));
+    for (const id of toDelete) {
+      await deleteDoc(doc(db, "matches", id));
+    }
+    // 追加・更新
+    for (const match of arr) {
+      await setDoc(doc(db, "matches", String(match.id)), match);
+    }
+  }
+
+  async function saveMembers(arr) {
+    const oldIds = membersCache.map(m => String(m.id));
+    const newIds = arr.map(m => String(m.id));
+    
+    const toDelete = oldIds.filter(id => !newIds.includes(id));
+    for (const id of toDelete) {
+      await deleteDoc(doc(db, "members", id));
+    }
+    for (const member of arr) {
+      await setDoc(doc(db, "members", String(member.id)), member);
+    }
+  }
+
+  // ── Firestore リアルタイム同期(他デバイスの変更も即反映)──
+  onSnapshot(collection(db, "matches"), (snapshot) => {
+    matchesCache = snapshot.docs.map(d => d.data());
+    renderMatchList();
+  });
+
+  onSnapshot(collection(db, "members"), (snapshot) => {
+    membersCache = snapshot.docs.map(d => d.data());
+    renderMemberList();
+  });
+
+  function showToast(msg) { const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),2500); }
+
+  // ── PHOTO HANDLING ──────────────────────────────────────────
+  let currentPhotoData = '';
+  function handlePhoto(e) {
+    const file = e.target.files[0]; if(!file) return;
+    const reader = new FileReader();
+    reader.onload = ev => {
+      currentPhotoData = ev.target.result;
+      const preview = document.getElementById('photoPreview');
+      const prompt = document.getElementById('uploadPrompt');
+      const area = document.getElementById('photoUploadArea');
+      preview.src = currentPhotoData;
+      preview.style.display = 'block';
+      prompt.style.display = 'none';
+      area.classList.add('has-photo');
+      document.getElementById('btnRemovePhoto').classList.add('visible');
+    };
+    reader.readAsDataURL(file);
+  }
+  function removePhoto() {
+    currentPhotoData = '';
+    document.getElementById('photoPreview').style.display = 'none';
+    document.getElementById('photoPreview').src = '';
+    document.getElementById('uploadPrompt').style.display = 'block';
+    document.getElementById('photoUploadArea').classList.remove('has-photo');
+    document.getElementById('btnRemovePhoto').classList.remove('visible');
+    document.getElementById('mPhoto').value = '';
+  }
+  function setPhotoPreview(src) {
+    if (!src) { removePhoto(); return; }
+    currentPhotoData = src;
+    const preview = document.getElementById('photoPreview');
+    preview.src = src; preview.style.display = 'block';
+    document.getElementById('uploadPrompt').style.display = 'none';
+    document.getElementById('photoUploadArea').classList.add('has-photo');
+    document.getElementById('btnRemovePhoto').classList.add('visible');
+  }
 
   // ── MATCHES ─────────────────────────────────────────────────
   let mGender='men', mLeague='spring', editingId=null;
@@ -336,7 +448,7 @@ body { background:#0a0a0a; }
     if (!el) return;
     if(!sorted.length){el.innerHTML='<div class="empty-msg">NO MEMBERS</div>';return;}
     el.innerHTML=sorted.map(m=>{
-      const thumbHTML = (m.photo && m.photo.length > 0)
+      const thumbHTML = m.photo
         ? `<div class="row-thumb"><img src="${m.photo}" alt="${m.name}"></div>`
         : `<div class="row-thumb"><span class="row-thumb-placeholder">${m.position}</span></div>`;
       return `<div class="row member-row-grid">
